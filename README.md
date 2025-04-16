@@ -15,10 +15,11 @@
 
 <h3>Run the script with: </h3>
 <p>server script</p>
-```
+<code>
 user$: python3 app/main.py
-```
+</code>
+
 <p>testing client script</p>
-```
+<code>
 user$: python3 app/client.py
-```
+</code>
