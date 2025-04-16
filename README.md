@@ -9,6 +9,7 @@
 
 <h1>Test screen shots! </h1>
 <div>
+  <p>So for testing two values name and age were set with ttl of k seconds as shown. after those k seconds the values were removed from the map!</p>
   <img src="/montages/TTL-test-with-map.png" height="300" alt="Testing hashmap of redis with TTL" />
   <img src="/montages/server-runtime.png" height="300" alt="Server runtime screen shot!" />
 </div>
