@@ -9,8 +9,8 @@
 
 <h1>Test screen shots! </h1>
 <div>
-  <img src="/montages/TTL-test-with-map.png" height="150" alt="Testing hashmap of redis with TTL" />
-  <img src="/montages/server-runtime.png" height="150" alt="Server runtime screen shot!" />
+  <img src="/montages/TTL-test-with-map.png" height="200" alt="Testing hashmap of redis with TTL" />
+  <img src="/montages/server-runtime.png" height="200" alt="Server runtime screen shot!" />
 </div>
 
 <h3>Run the script with: </h3>
