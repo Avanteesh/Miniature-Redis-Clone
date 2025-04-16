@@ -3,12 +3,19 @@ from re import split
 from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
+from os import mkdir, path
+from enum import Enum
 
+class Configs(Enum):
+    config_path: str = path.join('tmp','redis-data')  # config path
+    config_file: str = 'dump.rdb'    # configuration file    
 
 class Storage:
     map: dict[str, str] = {}
     
 def setKey(command: list[str]) -> str:
+    # set value to the hashmap
+    # default TTL is 86400
     if len(command) < 3:
         return "(error) ERR key and value must be specified!"
     DEFAULT_TTL = (datetime.now() + timedelta(seconds=86400))
@@ -30,6 +37,25 @@ def setKey(command: list[str]) -> str:
                 return '(error) ERR invalid argument for TTL field!'
     return "ok"
 
+def checkConfigurationDetails(command):
+    def init_configs():
+        if not path.exists('tmp'):
+            mkdir('tmp')
+        if not path.exists(Configs.config_path.value):
+            mkdir(Configs.config_path.value)
+    if len(command) < 3:
+        return f'(error) ERR no arguments have been provided!'
+    elif command[1].upper() == 'GET':
+        if command[2].upper() == 'DIR':
+            init_configs()
+            return f"1) \"dir\"\n2) \"{Configs.config_path.value}\""
+        if command[2].upper() == 'DBFILENAME':
+            init_configs()
+            if not path.exists(path.join(Configs.config_path.value, Configs.config_file.value)):
+                with open(path.join(Configs.config_path.value, Configs.config_file.value), 'wb') as _:
+                    pass
+            return f"1) \"dbfilename\"\n2) \"{Configs.config_file.value}\""
+
 def checkForExpiryKeys() -> None:
     # check if any of the keys have reached their expiry date!
     while True:
@@ -45,6 +71,7 @@ def checkForExpiryKeys() -> None:
             Storage.map = init_dict
         
 def getKey(command: list[str]) -> str:
+    # get value from the hashmap
     if len(command) < 2:
         return "(error) ERR key name not provided!"
     elif command[1] in Storage.map:
@@ -55,16 +82,21 @@ def connectToClient(socks: sock.socket):
     with socks:
         while True:
             command = socks.recv(1024).decode().rstrip().lstrip()
-            lexical_token = split(r" \s*", command)
+            tokenized = split(r" \s*", command)
             response: str = None
-            if lexical_token[0].upper() == "PING":
-                response = '+PONG\r\n'
-            elif lexical_token[0].upper() == "ECHO":
-                response = lexical_token[1]
-            elif lexical_token[0].upper() == "SET":
-                response = setKey(lexical_token)
-            elif lexical_token[0].upper() == "GET":
-                response = getKey(lexical_token)
+            if tokenized[0].upper() == "PING":
+                response = 'PONG\r'
+            elif tokenized[0].upper() == "ECHO":
+                if len(tokenized) < 2:
+                    response = "(error) ERR no statement mentioned!"
+                else:
+                    response = tokenized[1]
+            elif tokenized[0].upper() == "SET":
+                response = setKey(tokenized)
+            elif tokenized[0].upper() == "GET":
+                response = getKey(tokenized)
+            elif tokenized[0].upper() == "CONFIG":
+                response = checkConfigurationDetails(tokenized)
             else:
                 response = f"(error) ERR unknown command '{command}'"
             socks.sendall(response.encode())
