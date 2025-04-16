@@ -1,4 +1,4 @@
-# Miniature-Redis-Clone
+# Miniature-Redis-Clone (On progress!)
 
 <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original.svg"  height="250" />
 ## Redis is an In-memory database, that uses the Main memory and cache to store Data instead of The Hard disc, Redis is widely used in Backend servers for Caching but also as a main database.
