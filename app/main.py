@@ -1,5 +1,5 @@
 import socket as sock
-from re import split
+from re import split, match
 from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
@@ -141,6 +141,23 @@ def popElementFromList(command: list[str], left_pop: bool=True) -> str:
         del Storage.rlist[command[1]][0]
         return f"{first}"
     return 'nill'        
+
+def showActiveKeys(command: list[str]) -> str:
+    if len(command) < 2:
+        return "(error) ERR one argument missing!"
+    def patternFinder(pattern: str, keyelement: str):
+        result = match(pattern, keyelement)
+        if result == None:
+            return False
+        return (result.span != (0,0))
+    keys = [*Storage.map.keys(), *Storage.rlist.keys()]
+    pattern = command[1].replace('\'', '').replace('"', '')
+    if pattern != '*':
+        keys = list(filter(lambda key: patternFinder(pattern, key), keys))
+    response = ""
+    for k in range(len(keys)):
+        response += f"{k+1}) \"{keys[k]}\"\n"
+    return response[:-1]
             
 def connectToClient(socks: sock.socket):
     with socks:
@@ -169,6 +186,8 @@ def connectToClient(socks: sock.socket):
                 response = displayList(tokenized)
             elif tokenized[0].upper() == 'RPOP':
                 response = popElementFromList(tokenized, left_pop=False) # pop elements from right!
+            elif tokenized[0].upper() == 'KEYS':
+                response = showActiveKeys(tokenized)
             else:
                 response = f"(error) ERR unknown command '{command}'"
             socks.sendall(response.encode())
