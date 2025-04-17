@@ -98,26 +98,43 @@ def displayList(command: list[str]) -> str:
         return f"(error) ERR invalid number of arguments for \"lrange\" command"
     second_param = command[1].split(":")
     result = None
-    if len(second_param) == 2:
-        if second_param[0] in Storage.map:
-            if second_param[1] in Storage.map[second_param[0]]:
-                try: 
-                    start, end = int(command[2]), int(command[3])
-                    result = Storage.map[second_param[0]][second_param[1]]
-                    try:
-                        if end < 0:
-                            result = result[start:(len(result)+end)+1]
-                        else:
-                            result = result[start:end]
-                    except IndexError:
-                        return f"(error) ERR list index got out of bound"
-                except ValueError:
-                    return f"(error) ERR invalid arguments provided must be valid integers!"
+    if len(second_param) == 2 and second_param[0] in Storage.map:
+        if second_param[1] in Storage.map[second_param[0]]:
+            try: 
+                start, end = int(command[2]), int(command[3])
+                result = Storage.map[second_param[0]][second_param[1]]
+                try:
+                    if end < 0:
+                        result = result[start:(len(result)+end)+1]
+                    else:
+                        result = result[start:end]
+                except IndexError:
+                    return f"(error) ERR list index got out of bound"
+            except ValueError:
+                return f"(error) ERR invalid arguments provided must be valid integers!"
     query_response = str()
     for k in range(len(result)-1,-1,-1):
         query_response += f"{len(result)-k}) \"{result[k]}\"\n"
     return query_response[:-1]
-    
+
+def popElementFromList(command: list[str], left_pop: bool=True) -> str:
+    if len(command) < 2:
+        return f"(error) ERR invalid number of arguments for \"lpop\" command"
+    def removeElement():
+        if left_pop:
+            return f"{Storage.map[second_param[0]][second_param[1]].pop()}"
+        first = Storage.map[second_param[0]][second_param[1]][0]
+        del Storage.map[second_param[0]][second_param[1]][0]
+        return first
+    second_param = command[1].split(":")
+    if len(second_param) == 2:
+        if second_param[0] in Storage.map:
+            if second_param[1] in Storage.map[second_param[0]]:
+                if len(Storage.map[second_param[0]][second_param[1]]) > 1:
+                    return removeElement()
+            return 'nil'
+        return "nil"
+            
 def connectToClient(socks: sock.socket):
     with socks:
         while True:
@@ -139,6 +156,8 @@ def connectToClient(socks: sock.socket):
                 response = checkConfigurationDetails(tokenized)
             elif tokenized[0].upper() == 'LPUSH':
                 response = addItemToList(tokenized)
+            elif tokenized[0].upper() == 'LPOP':
+                response = popElementFromList(tokenized)
             elif tokenized[0].upper() == 'LRANGE':
                 response = displayList(tokenized)
             else:
