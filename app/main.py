@@ -4,14 +4,12 @@ from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
 from os import mkdir, path
-from enum import Enum
-
-class Configs(Enum):
-    config_path: str = path.join('tmp','redis-data')  # config path
-    config_file: str = 'dump.rdb'    # configuration file    
+from utils import Configs
 
 class Storage:
-    map: dict[str, str] = {}
+    map: dict[str, str] = dict()
+    rlist: list[str] = dict()
+
     
 def setKey(command: list[str]) -> str:
     # set value to the hashmap
@@ -77,6 +75,48 @@ def getKey(command: list[str]) -> str:
     elif command[1] in Storage.map:
         return Storage.map[command[1]]['value']
     return '(nil)'
+
+def addItemToList(command: list[str]) -> str:
+    if len(command) < 3:
+        return "(error) ERR wrong number of arguments for command LPUSH"
+    second_param = command[1].split(":")  # if second parameter is a string like key:value
+    if len(second_param) == 2:
+        if second_param[0] not in Storage.map:
+            Storage.map[second_param[0]] = {}
+            Storage.map[second_param[0]]['exp'] = datetime.now() + timedelta(hours=24)
+        Storage.map[second_param[0]][second_param[1]] = []
+        for k in range(2, len(command)):
+            Storage.map[second_param[0]][second_param[1]].append(command[k])
+        return f"(integer) {len(Storage.map[second_param[0]][second_param[1]])}"
+    Storage.rlist[command[1]] = list()
+    for k in range(2, len(command)):
+        Storage.rlist[command[1]].append(command[k])
+    return f"(integer) {len(Storage.rlist)}"
+
+def displayList(command: list[str]) -> str:
+    if len(command) < 4:
+        return f"(error) ERR invalid number of arguments for \"lrange\" command"
+    second_param = command[1].split(":")
+    result = None
+    if len(second_param) == 2:
+        if second_param[0] in Storage.map:
+            if second_param[1] in Storage.map[second_param[0]]:
+                try: 
+                    start, end = int(command[2]), int(command[3])
+                    result = Storage.map[second_param[0]][second_param[1]]
+                    try:
+                        if end < 0:
+                            result = result[start:(len(result)+end)+1]
+                        else:
+                            result = result[start:end]
+                    except IndexError:
+                        return f"(error) ERR list index got out of bound"
+                except ValueError:
+                    return f"(error) ERR invalid arguments provided must be valid integers!"
+    query_response = str()
+    for k in range(len(result)-1,-1,-1):
+        query_response += f"{len(result)-k}) \"{result[k]}\"\n"
+    return query_response[:-1]
     
 def connectToClient(socks: sock.socket):
     with socks:
@@ -97,6 +137,10 @@ def connectToClient(socks: sock.socket):
                 response = getKey(tokenized)
             elif tokenized[0].upper() == "CONFIG":
                 response = checkConfigurationDetails(tokenized)
+            elif tokenized[0].upper() == 'LPUSH':
+                response = addItemToList(tokenized)
+            elif tokenized[0].upper() == 'LRANGE':
+                response = displayList(tokenized)
             else:
                 response = f"(error) ERR unknown command '{command}'"
             socks.sendall(response.encode())
