@@ -1,10 +1,10 @@
 # Miniature-Redis-Clone (On progress!)
 
 <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original.svg"  height="250" />
-## Redis is an In-memory database, that uses the Main memory and cache to store Data instead of The Hard disc, Redis is widely used in Backend servers for Caching but also as a main database.
+<header>Redis is an In-memory database, that uses the Main memory and cache to store Data instead of The Hard disc, Redis is widely used in Backend servers for Caching but also as a main database.</header>
 
 <p>
-  it even has the ability to set TTL (Time to Live) for indvidual keys in The Map. 
+  it even has the ability to set TTL (Time to Live) for indvidual keys in The Map, Now also supports Lists data structure!
 </p>
 
 <h1>Test screen shots! </h1>
