@@ -84,34 +84,34 @@ def addItemToList(command: list[str]) -> str:
         if second_param[0] not in Storage.map:
             Storage.map[second_param[0]] = {}
             Storage.map[second_param[0]]['exp'] = datetime.now() + timedelta(hours=24)
-        Storage.map[second_param[0]][second_param[1]] = []
+        if second_param[1] not in Storage.map[second_param[0]]:
+            Storage.map[second_param[0]][second_param[1]] = [] 
         for k in range(2, len(command)):
             Storage.map[second_param[0]][second_param[1]].append(command[k])
         return f"(integer) {len(Storage.map[second_param[0]][second_param[1]])}"
-    Storage.rlist[command[1]] = list()
+    if command[1] not in Storage.rlist:
+        Storage.rlist[command[1]] = list()
     for k in range(2, len(command)):
         Storage.rlist[command[1]].append(command[k])
-    return f"(integer) {len(Storage.rlist)}"
+    return f"(integer) {len(Storage.rlist[command[1]])}"
 
 def displayList(command: list[str]) -> str:
     if len(command) < 4:
         return f"(error) ERR invalid number of arguments for \"lrange\" command"
-    second_param = command[1].split(":")
-    result = None
-    if len(second_param) == 2 and second_param[0] in Storage.map:
-        if second_param[1] in Storage.map[second_param[0]]:
-            try: 
-                start, end = int(command[2]), int(command[3])
+    second_param, result = (command[1].split(":"), None)
+    try:
+        start, end = int(command[2]), int(command[3])
+        if len(second_param) == 2 and second_param[0] in Storage.map:
+            if second_param[1] in Storage.map[second_param[0]]:
                 result = Storage.map[second_param[0]][second_param[1]]
-                try:
-                    if end < 0:
-                        result = result[start:(len(result)+end)+1]
-                    else:
-                        result = result[start:end]
-                except IndexError:
-                    return f"(error) ERR list index got out of bound"
-            except ValueError:
-                return f"(error) ERR invalid arguments provided must be valid integers!"
+        elif command[1] in Storage.rlist:
+            result = Storage.rlist[command[1]]
+        try:
+            result = (end < 0) and result[start:(len(result)+end)+1] or result[start:end]
+        except IndexError:
+            return f"(error) ERR list index got out of bound"
+    except ValueError:
+        return f"(error) ERR invalid arguments provided must be valid integers!"    
     query_response = str()
     for k in range(len(result)-1,-1,-1):
         query_response += f"{len(result)-k}) \"{result[k]}\"\n"
@@ -134,6 +134,13 @@ def popElementFromList(command: list[str], left_pop: bool=True) -> str:
                     return removeElement()
             return 'nil'
         return "nil"
+    if command[1] in Storage.rlist and len(Storage.rlist) >= 1:
+        if left_pop == True:
+            return f"{Storage.rlist[command[1]].pop()}"
+        first = Storage.rlist[command[1]][0]
+        del Storage.rlist[command[1]][0]
+        return f"{first}"
+    return 'nill'        
             
 def connectToClient(socks: sock.socket):
     with socks:
@@ -160,6 +167,8 @@ def connectToClient(socks: sock.socket):
                 response = popElementFromList(tokenized)
             elif tokenized[0].upper() == 'LRANGE':
                 response = displayList(tokenized)
+            elif tokenized[0].upper() == 'RPOP':
+                response = popElementFromList(tokenized, left_pop=False) # pop elements from right!
             else:
                 response = f"(error) ERR unknown command '{command}'"
             socks.sendall(response.encode())
