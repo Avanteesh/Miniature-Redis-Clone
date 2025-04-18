@@ -5,6 +5,7 @@ from threading import Thread, stack_size
 from time import sleep
 from os import mkdir, path
 from utils import Configs
+from sys import argv
 
 class Storage:
     map: dict[str, str] = dict()
@@ -168,10 +169,7 @@ def connectToClient(socks: sock.socket):
             if tokenized[0].upper() == "PING":
                 response = 'PONG\r'
             elif tokenized[0].upper() == "ECHO":
-                if len(tokenized) < 2:
-                    response = "(error) ERR no statement mentioned!"
-                else:
-                    response = tokenized[1]
+                response = (len(tokenized) < 2) and "(error) ERR no statement mentioned!" or tokenized[1]
             elif tokenized[0].upper() == "SET":
                 response = setKey(tokenized)
             elif tokenized[0].upper() == "GET":
@@ -193,8 +191,15 @@ def connectToClient(socks: sock.socket):
             socks.sendall(response.encode())
     
 def main():
+    PORT = Configs.default_port.value  # 6379 be the default port
+    if len(argv) == 3:
+        if argv[1] == '--port':
+            if not argv[2].isdigit():
+                print("Invalid PORT!")
+                return
+            PORT = int(argv[2])
     print("Logs from your program will appear here!")
-    sock_server = sock.create_server(("127.0.0.1", 6379))
+    sock_server = sock.create_server(("127.0.0.1", PORT))
     while True:
         connection, address = sock_server.accept()
         con_thread: Thread = Thread(target=connectToClient, args=[connection]) # connection thread!
