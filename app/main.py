@@ -4,13 +4,12 @@ from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
 from os import mkdir, path
-from utils import Configs
+from utils import Configs, Command
 from sys import argv
 
 class Storage:
     map: dict[str, str] = dict()
-    rlist: list[str] = dict()
-
+    rlist: dict[str, list[str]] = dict()
     
 def setKey(command: list[str]) -> str:
     # set value to the hashmap
@@ -44,7 +43,7 @@ def checkConfigurationDetails(command):
             mkdir(Configs.config_path.value)
     if len(command) < 3:
         return f'(error) ERR no arguments have been provided!'
-    elif command[1].upper() == 'GET':
+    elif command[1].upper() == Command.GET.value:
         if command[2].upper() == 'DIR':
             init_configs()
             return f"1) \"dir\"\n2) \"{Configs.config_path.value}\""
@@ -141,7 +140,7 @@ def popElementFromList(command: list[str], left_pop: bool=True) -> str:
         first = Storage.rlist[command[1]][0]
         del Storage.rlist[command[1]][0]
         return f"{first}"
-    return 'nill'        
+    return 'nil'        
 
 def showActiveKeys(command: list[str]) -> str:
     if len(command) < 2:
@@ -159,6 +158,7 @@ def showActiveKeys(command: list[str]) -> str:
     for k in range(len(keys)):
         response += f"{k+1}) \"{keys[k]}\"\n"
     return response[:-1]
+    
             
 def connectToClient(socks: sock.socket):
     with socks:
@@ -166,28 +166,33 @@ def connectToClient(socks: sock.socket):
             command = socks.recv(1024).decode().rstrip().lstrip()
             tokenized = split(r" \s*", command)
             response: str = None
-            if tokenized[0].upper() == "PING":
-                response = 'PONG\r'
-            elif tokenized[0].upper() == "ECHO":
-                response = (len(tokenized) < 2) and "(error) ERR no statement mentioned!" or tokenized[1]
-            elif tokenized[0].upper() == "SET":
-                response = setKey(tokenized)
-            elif tokenized[0].upper() == "GET":
-                response = getKey(tokenized)
-            elif tokenized[0].upper() == "CONFIG":
-                response = checkConfigurationDetails(tokenized)
-            elif tokenized[0].upper() == 'LPUSH':
-                response = addItemToList(tokenized)
-            elif tokenized[0].upper() == 'LPOP':
-                response = popElementFromList(tokenized)
-            elif tokenized[0].upper() == 'LRANGE':
-                response = displayList(tokenized)
-            elif tokenized[0].upper() == 'RPOP':
-                response = popElementFromList(tokenized, left_pop=False) # pop elements from right!
-            elif tokenized[0].upper() == 'KEYS':
-                response = showActiveKeys(tokenized)
-            else:
-                response = f"(error) ERR unknown command '{command}'"
+            match tokenized[0].upper():
+                case Command.PING.value:
+                    response = 'PONG\r'
+                case Command.ECHO.value:
+                    response = (len(tokenized) < 2) and "(error) ERR no statement mentioned!" or tokenized[1]
+                case Command.SET.value:
+                    response = setKey(tokenized)
+                case Command.GET.value:
+                    response = getKey(tokenized)
+                case Command.CONFIG.value:
+                    response = checkConfigurationDetails(tokenized)
+                case Command.LPUSH.value:
+                    response = addItemToList(tokenized)
+                case Command.LPOP.value:
+                    response = popElementFromList(tokenized)
+                case Command.LRANGE.value:
+                    response = displayList(tokenized)
+                case Command.LPOP.value:
+                    response = popElementFromList(tokenized, left_pop=False) # pop elements from right!
+                case Command.KEYS.value:
+                    response = showActiveKeys(tokenized)
+                case Command.EXIT.value:
+                    socks.sendall(b"closed")
+                    socks.close()
+                    return
+                case _:
+                    response = f"(error) ERR unknown command '{command}'"
             socks.sendall(response.encode())
     
 def main():
