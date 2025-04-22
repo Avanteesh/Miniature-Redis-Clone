@@ -158,10 +158,22 @@ def showActiveKeys(command: list[str]) -> str:
     for k in range(len(keys)):
         response += f"{k+1}) \"{keys[k]}\"\n"
     return response[:-1]
+
+def incrementKey(command: list[str]) -> str:
+    if len(command) != 2:
+        return "(error) ERR two arguments required!"
+    elif command[1] not in Storage.map:
+        return "(error) nil values can't be incremented!"
+    try:
+        key_val = int(Storage.map[command[1]]['value'])
+        Storage.map[command[1]]['value'] = str(key_val + 1)
+    except ValueError:
+        return f"(error) the key \"{command[1]}\" is not valid number"
+    return "ok"
     
-            
 def connectToClient(socks: sock.socket):
     with socks:
+        queueing_mode, command_response = False, []
         while True:
             command = socks.recv(1024).decode().rstrip().lstrip()
             tokenized = split(r" \s*", command)
@@ -169,24 +181,73 @@ def connectToClient(socks: sock.socket):
             match tokenized[0].upper():
                 case Command.PING.value:
                     response = 'PONG\r'
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.ECHO.value:
                     response = (len(tokenized) < 2) and "(error) ERR no statement mentioned!" or tokenized[1]
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.SET.value:
                     response = setKey(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.GET.value:
                     response = getKey(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.CONFIG.value:
                     response = checkConfigurationDetails(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.LPUSH.value:
                     response = addItemToList(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.LPOP.value:
                     response = popElementFromList(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.LRANGE.value:
                     response = displayList(tokenized)
-                case Command.LPOP.value:
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
+                case Command.RPOP.value:
                     response = popElementFromList(tokenized, left_pop=False) # pop elements from right!
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.KEYS.value:
                     response = showActiveKeys(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
+                case Command.INCR.value:
+                    response = incrementKey(tokenized)
+                    if queueing_mode:
+                        command_responses.append(response)
+                        response = "QUEUED"
+                case Command.MULTI.value:
+                    if queueing_mode:
+                        response = "(error) ERR already in queue"    
+                    queueing_mode = True
+                    response = 'OK'
+                case Command.EXEC.value:
+                    if not queueing_mode:
+                        response = "(error) Commands were never queued"
+                    else:
+                        response = ""
+                        for k in range(len(command_response)):
+                            response += f"{k+1}) {command_response[k]}\n"
+                        response = response[:-1]
+                        command_response.clear()
                 case Command.EXIT.value:
                     socks.sendall(b"closed")
                     socks.close()
