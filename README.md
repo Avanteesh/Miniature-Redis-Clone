@@ -4,9 +4,14 @@
 <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" height="250" />
 <header>Redis is an In-memory database, that uses the Main memory and cache to store Data instead of The Hard disc, Redis is widely used in Backend servers for Caching but also as a main database.</header>
 
-<p>
-  it even has the ability to set TTL (Time to Live) for indvidual keys in The Map, Now also supports Lists data structure!
-</p>
+<details>
+  <summary>Core Features</summary>
+  <ul>
+    <li>Each Key can have a TTL (Time to Live) in The Map </li>
+    <li>Supports Lists data structure with TTL as well</li>
+    <li>You can even Queuing commands as a batch and executing it.</li>
+  </ul>
+</details>
 
 <h1>Test screen shots! </h1>
 <div>
