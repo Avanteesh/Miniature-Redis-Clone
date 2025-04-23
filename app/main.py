@@ -4,12 +4,13 @@ from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
 from os import mkdir, path
-from utils import Configs, Command
+from utils import Configs, Command, Stream
 from sys import argv
 
 class Storage:
     map: dict[str, str] = dict()
     rlist: dict[str, list[str]] = dict()
+    streams: dict[str, list[Stream]] = dict()
     
 def setKey(command: list[str]) -> str:
     # set value to the hashmap
@@ -170,6 +171,46 @@ def incrementKey(command: list[str]) -> str:
     except ValueError:
         return f"(error) the key \"{command[1]}\" is not valid number"
     return "ok"
+
+def appendStreamLog(command: list[str]) -> str:
+    if len(command) < 5:
+        return "(error) ERR invalid number of arguments. You need to specify a keyname, Unique Key and keyvalue pairs"
+    def helper(unique_key: str):
+        stream: Stream = Stream(unique_key) 
+        if len(command[3:]) % 2 != 0:
+            return "(error) values of all keys must be specified"
+        u = 3
+        while u < len(command)-1:
+            stream.addItem(command[u], command[u+1])
+            u += 1
+        if len(Storage.streams[command[1]]) >= 1:
+            # comparing the prior key with the new key!
+            if int(Storage.streams[command[1]][-1].id.replace("-","")) >= int(unique_key.replace("-","")):
+                return "(error) Invalid Key: The input key must be greater the previously added key"
+        Storage.streams[command[1]].append(stream)    
+        return f"\"{unique_key}\""
+    if command[1] not in Storage.streams:
+        Storage.streams[command[1]] = list() 
+    unique_key = command[2]
+    if match(r"\d+-\d+", unique_key) is not None:    
+        return helper(unique_key)
+    elif match(r"\d+", unique_key) is not None:
+        return helper(f"{unique_key}-0")
+
+def getKeyType(command: list[str]) -> str:
+    if len(command) != 2:
+        return "(error) Two arguments required for type"
+    if command[1] in Storage.map:
+        return 'string'
+    elif match(r"\w+:\w+", command[1]) is not None:
+        keys = command[1].split(":")
+        if keys[0] in Storage.map:
+            if keys[1] in Storage.map[keys[0]]:
+                if Storage.map[keys[0]][keys[1]]:
+                    return 'list'
+        return 'none'
+    elif command[1] in Storage.streams:
+        return 'stream'
     
 def connectToClient(socks: sock.socket):
     with socks:
@@ -241,13 +282,24 @@ def connectToClient(socks: sock.socket):
                     response = 'OK'
                 case Command.EXEC.value:
                     if not queueing_mode:
-                        response = "(error) Commands were never queued"
+                        response = "(error) Commands were never queued, You need to use the MULTI command"
                     else:
                         response = ""
                         for k in range(len(command_response)):
                             response += f"{k+1}) {command_response[k]}\n"
                         response = response[:-1]
+                        queueing_mode = False
                         command_response.clear()
+                case Command.XADD.value:
+                    response = appendStreamLog(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = "QUEUED"
+                case Command.TYPE.value:
+                    response = getKeyType(tokenized)
+                    if queueing_mode:
+                        command_response.append(response)
+                        response = 'QUEUED'
                 case Command.EXIT.value:
                     socks.sendall(b"closed")
                     socks.close()
