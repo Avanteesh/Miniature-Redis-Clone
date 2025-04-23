@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original.svg"  height="250" />
 <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" height="250" />
-<header>Redis is an In-memory database, that uses the Main memory and cache to store Data instead of The Hard disc, Redis is widely used in Backend servers for Caching but also as a main database.</header>
+<header>Redis is an In-memory database, that uses the Main memory and cache to store Data instead of The Hard disc, Redis is widely used in Backend servers for Caching but also can be used as a main database.</header>
 <br/>
 <details>
   <summary>Core Features</summary>
@@ -10,6 +10,8 @@
     <li>Each Key can have a TTL (Time to Live) in The Map </li>
     <li>Supports Lists data structure with TTL as well</li>
     <li>You can even Queuing commands as a batch and executing it.</li>
+    <li>Even has Type command to check type of the key!</li>
+    <li>Also has Stream data structure. </li>
   </ul>
 </details>
 
