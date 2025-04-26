@@ -11,7 +11,7 @@
     <li>Supports Lists data structure with TTL as well</li>
     <li>You can even Queuing commands as a batch and executing it. Uses the concept of RESP (Redis serialization protocol) Bulk string Array</li>
     <li>Even has Type command to check type of the key!</li>
-    <li>Also has Stream data structure. </li>
+    <li>Also has Stream data structure, with operations like xadd and more coming soon!</li>
   </ul>
 </details>
 
