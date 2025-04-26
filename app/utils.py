@@ -5,7 +5,10 @@ from typing import Union
 def listToRESPArray(arraylist: list[str]) -> str:
     result = f"*{len(arraylist)}\r\n"
     for item in arraylist:
-        result += f"${len(item)}\r\n{item}\r\n"
+        if isinstance(item, list) or isinstance(item, tuple):
+            result += listToRESPArray(item)  # is item in list is of type array convert it into RESP string recursively!
+        else:
+            result += f"${len(item)}\r\n{item}\r\n"
     return result
 
 # command grammar
@@ -25,6 +28,7 @@ class Command(Enum):
     MULTI = 'MULTI'   # create a queue for batching multiple commands
     EXEC = 'EXEC'    # execute the batched commands
     XADD = 'XADD'   # add data into a Stream 
+    XRANGE = 'XRANGE'  # show items inside a stream!
     TYPE = 'TYPE'   # check the type of element stored in key!
     DISCARD = 'DISCARD'  # terminate the batch 
 

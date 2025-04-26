@@ -6,6 +6,7 @@ from time import sleep
 from os import mkdir, path
 from utils import Configs, Command, Stream, listToRESPArray
 from sys import argv
+from time import time
 from base64 import b64decode
 
 class Storage:
@@ -108,16 +109,15 @@ def displayList(command: list[str]) -> str:
                 result = Storage.map[second_param[0]][second_param[1]]
         elif command[1] in Storage.rlist:
             result = Storage.rlist[command[1]]
+        if result is None:
+            return "+(empty array)\r\n"
         try:
             result = (end < 0) and result[start:(len(result)+end)+1] or result[start:end]
         except IndexError:
             return f"+(error) ERR list index got out of bound\r\n"
     except ValueError:
         return f"+(error) ERR invalid arguments provided must be valid integers!\r\n"    
-    query_response = "+"
-    for k in range(len(result)-1,-1,-1):
-        query_response += f"{len(result)-k}) \"{result[k]}\"\n"
-    return query_response[:-1] + "\r\n"
+    return listToRESPArray(result)
 
 def popElementFromList(command: list[str], left_pop: bool=True) -> str:
     if len(command) < 2:
@@ -191,14 +191,22 @@ def appendStreamLog(command: list[str]) -> str:
         Storage.streams[command[1]].append(stream)    
         return f"+\"{unique_key}\"\r\n"
     if command[1] not in Storage.streams:
-        Storage.streams[command[1]] = list() 
+        Storage.streams[command[1]] = list()
     unique_key = command[2]
     if unique_key == "0-0":
         return "+(error) ERR The ID specified in XADD must be greater than 0-0\r\n"
+    elif unique_key == "*":
+        unix_timestamp = f"{time()*1e7}-0"
+        return helper(unix_timestamp)
     elif match(r"\d+-\d+", unique_key) is not None:    
         return helper(unique_key)
     elif match(r"\d+", unique_key) is not None:
         return helper(f"{unique_key}-0")
+
+def displayStreamResponse(command: list[str]) -> str:
+    if len(command) < 4:
+        return "+(error) ERR stream keys starting and ending range not specified!\r\n"
+    
 
 def getKeyType(command: list[str]) -> str:
     if len(command) != 2:
@@ -302,7 +310,7 @@ def connectToClient(socks: sock.socket):
                     case Command.XADD.value:
                         response = appendStreamLog(command)
                         if queueing_mode:
-                            batch_queue.append(command)
+                            batch_queue.append(response)
                             response = "+QUEUED\r\n"
                     case Command.TYPE.value:
                         response = getKeyType(command)
@@ -316,6 +324,11 @@ def connectToClient(socks: sock.socket):
                             queueing_mode = False
                             batch_queue.clear()
                             response = "+OK\r\n"
+                    case Command.XRANGE.value:
+                        response = displayStreamResponse(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = "+QUEUED\r\n"
                     case Command.EXIT.value:
                         socks.sendall(b"+closed\r\n")
                         socks.close()
