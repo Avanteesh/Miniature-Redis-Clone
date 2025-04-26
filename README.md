@@ -28,7 +28,8 @@
 user$: python3 app/main.py
 </code>
 
-<p>testing client script</p>
+<p>test using the Redis client</p>
 <code>
-user$: python3 app/client.py
+user$: redis-cli
 </code>
+
