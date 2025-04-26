@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
 from os import mkdir, path
-from utils import Configs, Command, Stream
+from utils import Configs, Command, Stream, listToRESPArray
 from sys import argv
+from base64 import b64decode
 
 class Storage:
     map: dict[str, str] = dict()
@@ -36,7 +37,7 @@ def setKey(command: list[str]) -> str:
                 return '+(error) ERR invalid argument for TTL field!\r\n'
     return "+OK\r\n"
 
-def checkConfigurationDetails(command):
+def checkConfigurationDetails(command) -> str:
     def init_configs():
         if not path.exists('tmp'):
             mkdir('tmp')
@@ -47,13 +48,13 @@ def checkConfigurationDetails(command):
     elif command[1].upper() == Command.GET.value:
         if command[2].upper() == 'DIR':
             init_configs()
-            return f"+1) \"dir\"\n2) \"{Configs.config_path.value}\"\r\n"
+            return listToRESPArray([Configs.config_path.value])
         if command[2].upper() == 'DBFILENAME':
             init_configs()
             if not path.exists(path.join(Configs.config_path.value, Configs.config_file.value)):
-                with open(path.join(Configs.config_path.value, Configs.config_file.value), 'wb') as _:
-                    pass
-            return f"+1) \"dbfilename\"\n2) \"{Configs.config_file.value}\"\r\n"
+                with open(path.join(Configs.config_path.value, Configs.config_file.value), 'wb') as f1:
+                    f1.write(b64decode(Configs.rdb_header.value))
+            return listToRESPArray(['dbfilename', Configs.config_file.value])
 
 def checkForExpiryKeys() -> None:
     # check if any of the keys have reached their expiry date!

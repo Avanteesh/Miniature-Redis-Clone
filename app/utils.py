@@ -2,6 +2,12 @@ from enum import Enum
 from os import path
 from typing import Union
 
+def listToRESPArray(arraylist: list[str]) -> str:
+    result = f"*{len(arraylist)}\r\n"
+    for item in arraylist:
+        result += f"${len(item)}\r\n{item}\r\n"
+    return result
+
 # command grammar
 class Command(Enum):
     PING = 'PING'
@@ -25,6 +31,7 @@ class Command(Enum):
 class Configs(Enum):
     default_port: int = 6379
     config_path: str = path.join('tmp','redis-data')  # config path
+    rdb_header: bytes = b"UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
     config_file: str = 'dump.rdb'    # configuration file    
         
 class Stream(object):
