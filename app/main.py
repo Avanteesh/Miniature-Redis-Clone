@@ -186,13 +186,15 @@ def appendStreamLog(command: list[str]) -> str:
         if len(Storage.streams[command[1]]) >= 1:
             # comparing the prior key with the new key!
             if int(Storage.streams[command[1]][-1].id.replace("-","")) >= int(unique_key.replace("-","")):
-                return "+(error) Invalid Key: The input key must be greater the previously added key\r\n"
+                return "+(error) ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
         Storage.streams[command[1]].append(stream)    
         return f"+\"{unique_key}\"\r\n"
     if command[1] not in Storage.streams:
         Storage.streams[command[1]] = list() 
     unique_key = command[2]
-    if match(r"\d+-\d+", unique_key) is not None:    
+    if unique_key == "0-0":
+        return "+(error) ERR The ID specified in XADD must be greater than 0-0\r\n"
+    elif match(r"\d+-\d+", unique_key) is not None:    
         return helper(unique_key)
     elif match(r"\d+", unique_key) is not None:
         return helper(f"{unique_key}-0")
