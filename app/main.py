@@ -16,7 +16,7 @@ def setKey(command: list[str]) -> str:
     # set value to the hashmap
     # default TTL is 86400
     if len(command) < 3:
-        return "(error) ERR key and value must be specified!"
+        return "+(error) ERR key and value must be specified!\r\n"
     DEFAULT_TTL = (datetime.now() + timedelta(seconds=86400))
     Storage.map[command[1]] = {'value': command[2], 'exp': DEFAULT_TTL}  # default expiry time
     if len(command) == 5:
@@ -33,8 +33,8 @@ def setKey(command: list[str]) -> str:
                   'value': command[2], 'exp': STATIC_TTL
                 }
             case _:
-                return '(error) ERR invalid argument for TTL field!'
-    return "ok"
+                return '+(error) ERR invalid argument for TTL field!\r\n'
+    return "+OK\r\n"
 
 def checkConfigurationDetails(command):
     def init_configs():
@@ -43,17 +43,17 @@ def checkConfigurationDetails(command):
         if not path.exists(Configs.config_path.value):
             mkdir(Configs.config_path.value)
     if len(command) < 3:
-        return f'(error) ERR no arguments have been provided!'
+        return f'+(error) ERR no arguments have been provided!\r\n'
     elif command[1].upper() == Command.GET.value:
         if command[2].upper() == 'DIR':
             init_configs()
-            return f"1) \"dir\"\n2) \"{Configs.config_path.value}\""
+            return f"+1) \"dir\"\n2) \"{Configs.config_path.value}\"\r\n"
         if command[2].upper() == 'DBFILENAME':
             init_configs()
             if not path.exists(path.join(Configs.config_path.value, Configs.config_file.value)):
                 with open(path.join(Configs.config_path.value, Configs.config_file.value), 'wb') as _:
                     pass
-            return f"1) \"dbfilename\"\n2) \"{Configs.config_file.value}\""
+            return f"+1) \"dbfilename\"\n2) \"{Configs.config_file.value}\"\r\n"
 
 def checkForExpiryKeys() -> None:
     # check if any of the keys have reached their expiry date!
@@ -72,14 +72,14 @@ def checkForExpiryKeys() -> None:
 def getKey(command: list[str]) -> str:
     # get value from the hashmap
     if len(command) < 2:
-        return "(error) ERR key name not provided!"
+        return "+(error) ERR key name not provided!\r\n"
     elif command[1] in Storage.map:
-        return Storage.map[command[1]]['value']
-    return '(nil)'
+        return f"+{Storage.map[command[1]]['value']}\r\n"
+    return '+(nil)\r\n'
 
 def addItemToList(command: list[str]) -> str:
     if len(command) < 3:
-        return "(error) ERR wrong number of arguments for command LPUSH"
+        return "+(error) ERR wrong number of arguments for command LPUSH\r\n"
     second_param = command[1].split(":")  # if second parameter is a string like key:value
     if len(second_param) == 2:
         if second_param[0] not in Storage.map:
@@ -89,16 +89,16 @@ def addItemToList(command: list[str]) -> str:
             Storage.map[second_param[0]][second_param[1]] = [] 
         for k in range(2, len(command)):
             Storage.map[second_param[0]][second_param[1]].append(command[k])
-        return f"(integer) {len(Storage.map[second_param[0]][second_param[1]])}"
+        return f"+(integer) {len(Storage.map[second_param[0]][second_param[1]])}\r\n"
     if command[1] not in Storage.rlist:
         Storage.rlist[command[1]] = list()
     for k in range(2, len(command)):
         Storage.rlist[command[1]].append(command[k])
-    return f"(integer) {len(Storage.rlist[command[1]])}"
+    return f"+(integer) {len(Storage.rlist[command[1]])}\r\n"
 
 def displayList(command: list[str]) -> str:
     if len(command) < 4:
-        return f"(error) ERR invalid number of arguments for \"lrange\" command"
+        return f"+(error) ERR invalid number of arguments for \"lrange\" command\r\n"
     second_param, result = (command[1].split(":"), None)
     try:
         start, end = int(command[2]), int(command[3])
@@ -110,42 +110,42 @@ def displayList(command: list[str]) -> str:
         try:
             result = (end < 0) and result[start:(len(result)+end)+1] or result[start:end]
         except IndexError:
-            return f"(error) ERR list index got out of bound"
+            return f"+(error) ERR list index got out of bound\r\n"
     except ValueError:
-        return f"(error) ERR invalid arguments provided must be valid integers!"    
-    query_response = str()
+        return f"+(error) ERR invalid arguments provided must be valid integers!\r\n"    
+    query_response = "+"
     for k in range(len(result)-1,-1,-1):
         query_response += f"{len(result)-k}) \"{result[k]}\"\n"
-    return query_response[:-1]
+    return query_response[:-1] + "\r\n"
 
 def popElementFromList(command: list[str], left_pop: bool=True) -> str:
     if len(command) < 2:
-        return f"(error) ERR invalid number of arguments for \"lpop\" command"
+        return f"+(error) ERR invalid number of arguments for \"lpop\" command\r\n"
     def removeElement():
         if left_pop:
-            return f"{Storage.map[second_param[0]][second_param[1]].pop()}"
+            return f"+{Storage.map[second_param[0]][second_param[1]].pop()}\r\n"
         first = Storage.map[second_param[0]][second_param[1]][0]
         del Storage.map[second_param[0]][second_param[1]][0]
-        return first
+        return f"+{first}\r\n"
     second_param = command[1].split(":")
     if len(second_param) == 2:
         if second_param[0] in Storage.map:
             if second_param[1] in Storage.map[second_param[0]]:
                 if len(Storage.map[second_param[0]][second_param[1]]) > 1:
                     return removeElement()
-            return 'nil'
-        return "nil"
+            return '+(nil)\r\n'
+        return "+(nil)\r\n"
     if command[1] in Storage.rlist and len(Storage.rlist) >= 1:
         if left_pop == True:
-            return f"{Storage.rlist[command[1]].pop()}"
+            return f"+{Storage.rlist[command[1]].pop()}\r\n"
         first = Storage.rlist[command[1]][0]
         del Storage.rlist[command[1]][0]
-        return f"{first}"
-    return 'nil'        
+        return f"+{first}\r\n"
+    return '+(nil)\r\n'        
 
 def showActiveKeys(command: list[str]) -> str:
     if len(command) < 2:
-        return "(error) ERR one argument missing!"
+        return "+(error) ERR one argument missing!\r\n"
     def patternFinder(pattern: str, keyelement: str):
         result = match(pattern, keyelement)
         if result == None:
@@ -155,30 +155,30 @@ def showActiveKeys(command: list[str]) -> str:
     pattern = command[1].replace('\'', '').replace('"', '')
     if pattern != '*':
         keys = list(filter(lambda key: patternFinder(pattern, key), keys))
-    response = ""
+    response = "+"
     for k in range(len(keys)):
         response += f"{k+1}) \"{keys[k]}\"\n"
-    return response[:-1]
+    return response[:-1] + "\r\n" 
 
 def incrementKey(command: list[str]) -> str:
     if len(command) != 2:
-        return "(error) ERR two arguments required!"
+        return "+(error) ERR two arguments required!\r\n"
     elif command[1] not in Storage.map:
-        return "(error) nil values can't be incremented!"
+        return "+(error) nil values can't be incremented!\r\n"
     try:
         key_val = int(Storage.map[command[1]]['value'])
         Storage.map[command[1]]['value'] = str(key_val + 1)
     except ValueError:
-        return f"(error) the key \"{command[1]}\" is not valid number"
-    return "ok"
+        return f"+(error) the key \"{command[1]}\" is not valid number\r\n"
+    return "+OK\r\n"
 
 def appendStreamLog(command: list[str]) -> str:
     if len(command) < 5:
-        return "(error) ERR invalid number of arguments. You need to specify a keyname, Unique Key and keyvalue pairs"
+        return "+(error) ERR invalid number of arguments. You need to specify a keyname, Unique Key and keyvalue pairs\r\n"
     def helper(unique_key: str):
         stream: Stream = Stream(unique_key) 
         if len(command[3:]) % 2 != 0:
-            return "(error) values of all keys must be specified"
+            return "+(error) values of all keys must be specified\r\n"
         u = 3
         while u < len(command)-1:
             stream.addItem(command[u], command[u+1])
@@ -186,9 +186,9 @@ def appendStreamLog(command: list[str]) -> str:
         if len(Storage.streams[command[1]]) >= 1:
             # comparing the prior key with the new key!
             if int(Storage.streams[command[1]][-1].id.replace("-","")) >= int(unique_key.replace("-","")):
-                return "(error) Invalid Key: The input key must be greater the previously added key"
+                return "+(error) Invalid Key: The input key must be greater the previously added key\r\n"
         Storage.streams[command[1]].append(stream)    
-        return f"\"{unique_key}\""
+        return f"+\"{unique_key}\"\r\n"
     if command[1] not in Storage.streams:
         Storage.streams[command[1]] = list() 
     unique_key = command[2]
@@ -199,115 +199,121 @@ def appendStreamLog(command: list[str]) -> str:
 
 def getKeyType(command: list[str]) -> str:
     if len(command) != 2:
-        return "(error) Two arguments required for type"
+        return "+(error) Two arguments required for type\r\n"
     if command[1] in Storage.map:
-        return 'string'
+        return '+string\r\n'
     elif match(r"\w+:\w+", command[1]) is not None:
         keys = command[1].split(":")
         if keys[0] in Storage.map:
             if keys[1] in Storage.map[keys[0]]:
                 if Storage.map[keys[0]][keys[1]]:
-                    return 'list'
-        return 'none'
+                    return '+list\r\n'
+        return '+none\r\n'
     elif command[1] in Storage.streams:
-        return 'stream'
+        return '+stream\r\n'
+
+def parseRespString(respstr: str) -> list[str]:
+    tokens = respstr.split("\r\n")
+    result = []
+    for k in range(2, len(tokens), 2):
+        result.append(tokens[k])
+    return result
     
 def connectToClient(socks: sock.socket):
     with socks:
-        queueing_mode, command_response = False, []
+        queueing_mode, batch_queue = False, []
         while True:
-            command = socks.recv(1024).decode().rstrip().lstrip()
-            tokenized = split(r" \s*", command)
-            response: str = None
-            match tokenized[0].upper():
-                case Command.PING.value:
-                    response = 'PONG\r'
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.ECHO.value:
-                    response = (len(tokenized) < 2) and "(error) ERR no statement mentioned!" or tokenized[1]
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.SET.value:
-                    response = setKey(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.GET.value:
-                    response = getKey(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.CONFIG.value:
-                    response = checkConfigurationDetails(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.LPUSH.value:
-                    response = addItemToList(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.LPOP.value:
-                    response = popElementFromList(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.LRANGE.value:
-                    response = displayList(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.RPOP.value:
-                    response = popElementFromList(tokenized, left_pop=False) # pop elements from right!
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.KEYS.value:
-                    response = showActiveKeys(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.INCR.value:
-                    response = incrementKey(tokenized)
-                    if queueing_mode:
-                        command_responses.append(response)
-                        response = "QUEUED"
-                case Command.MULTI.value:
-                    if queueing_mode:
-                        response = "(error) ERR already in queue"    
-                    queueing_mode = True
-                    response = 'OK'
-                case Command.EXEC.value:
-                    if not queueing_mode:
-                        response = "(error) Commands were never queued, You need to use the MULTI command"
-                    else:
-                        response = ""
-                        for k in range(len(command_response)):
-                            response += f"{k+1}) {command_response[k]}\n"
-                        response = response[:-1]
-                        queueing_mode = False
-                        command_response.clear()
-                case Command.XADD.value:
-                    response = appendStreamLog(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = "QUEUED"
-                case Command.TYPE.value:
-                    response = getKeyType(tokenized)
-                    if queueing_mode:
-                        command_response.append(response)
-                        response = 'QUEUED'
-                case Command.EXIT.value:
-                    socks.sendall(b"closed")
-                    socks.close()
-                    return
-                case _:
-                    response = f"(error) ERR unknown command '{command}'"
-            socks.sendall(response.encode())
-    
+            command = parseRespString(socks.recv(1024).decode().rstrip().lstrip())
+            response: str = str()
+            if len(command) != 0:
+                match command[0].upper():
+                    case Command.PING.value:
+                        response = '+PONG\r\n'
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.ECHO.value:
+                        response = (len(command) < 2) and "+(error) ERR no statement mentioned!\r\n" or f"+{command[1]}\r\n"
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.SET.value:
+                        response = setKey(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.GET.value:
+                        response = getKey(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.CONFIG.value:
+                        response = checkConfigurationDetails(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.LPUSH.value:
+                        response = addItemToList(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.LPOP.value:
+                        response = popElementFromList(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.LRANGE.value:
+                        response = displayList(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.RPOP.value:
+                        response = popElementFromList(command, left_pop=False) # pop elements from right!
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.KEYS.value:
+                        response = showActiveKeys(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.INCR.value:
+                        response = incrementKey(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = "+QUEUED\r\n"
+                    case Command.MULTI.value:
+                        if queueing_mode:
+                            response = "+(error) ERR already in queue\r\n"    
+                        queueing_mode = True
+                        response = '+OK\r\n'
+                    case Command.EXEC.value:
+                        if not queueing_mode:
+                            response = "+(error) Commands were never queued, You need to use the MULTI command\r\n"
+                        else:
+                            response = f"*{len(batch_queue)}\r\n"  # resp bulkstring for array representation
+                            for item in batch_queue:
+                                response += f"{item}"
+                            queueing_mode = False
+                            batch_queue.clear()
+                    case Command.XADD.value:
+                        response = appendStreamLog(command)
+                        if queueing_mode:
+                            batch_queue.append(command)
+                            response = "+QUEUED\r\n"
+                    case Command.TYPE.value:
+                        response = getKeyType(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = '+QUEUED\r\n'
+                    case Command.EXIT.value:
+                        socks.sendall(b"+closed\r\n")
+                        socks.close()
+                        return
+                    case _:
+                        response = f"+(error) ERR unknown command '{command[0]}'\r\n"
+                print(response.encode())
+                socks.sendall(response.encode())
 def main():
     PORT = Configs.default_port.value  # 6379 be the default port
     if len(argv) == 3:
