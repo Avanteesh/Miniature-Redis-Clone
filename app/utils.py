@@ -10,28 +10,28 @@ def listToRESPArray(arraylist: list[str]) -> str:
 
 # command grammar
 class Command(Enum):
-    PING = 'PING'
-    ECHO = 'ECHO'
-    SET = 'SET'
-    GET = 'GET'
-    CONFIG = 'CONFIG'
-    LPUSH = 'LPUSH'
-    LPOP = 'LPOP'
-    LRANGE = 'LRANGE'
-    RPOP = 'RPOP'
-    KEYS = 'KEYS'
-    INCR = 'INCR'
-    EXIT = 'EXIT'
-    MULTI = 'MULTI'
-    EXEC = 'EXEC'
-    XADD = 'XADD'  
-    TYPE = 'TYPE'
-    DISCARD = 'DISCARD'
+    PING = 'PING'  # Check if the server is healthy
+    ECHO = 'ECHO'  # print a statement return after it (like a print statement)
+    SET = 'SET'    # set a key with value
+    GET = 'GET'    # get the value of a key
+    CONFIG = 'CONFIG'   # check file configuration for db
+    LPUSH = 'LPUSH'    # add element into the List
+    LPOP = 'LPOP'     # pop the last element from list
+    LRANGE = 'LRANGE'   # display a list with specified position
+    RPOP = 'RPOP'     # pop right most element from list
+    KEYS = 'KEYS'     # show all the keys in the map
+    INCR = 'INCR'     # increment a key (only if a value is number)
+    EXIT = 'EXIT'     # stop the client from executing
+    MULTI = 'MULTI'   # create a queue for batching multiple commands
+    EXEC = 'EXEC'    # execute the batched commands
+    XADD = 'XADD'   # add data into a Stream 
+    TYPE = 'TYPE'   # check the type of element stored in key!
+    DISCARD = 'DISCARD'  # terminate the batch 
 
 class Configs(Enum):
     default_port: int = 6379
     config_path: str = path.join('tmp','redis-data')  # config path
-    rdb_header: bytes = b"UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
+    rdb_header: bytes = b"UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==" # rdb file header
     config_file: str = 'dump.rdb'    # configuration file    
         
 class Stream(object):
