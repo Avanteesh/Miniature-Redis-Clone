@@ -51,7 +51,4 @@ class Stream(object):
         self.__stream_list.append((key, value))        
 
     def __repr__(self):
-        response = f"{self.id}\n"
-        for k in range(len(self.__stream_list)):
-            response += f"{k+1}) {self.__stream_list[k][0]}\n{k+2}) {self.__stream_list[k][1]}\n"
-        return response
+        return listToRESPArray(self.__stream_list)
