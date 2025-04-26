@@ -20,6 +20,7 @@ class Command(Enum):
     EXEC = 'EXEC'
     XADD = 'XADD'  
     TYPE = 'TYPE'
+    DISCARD = 'DISCARD'
 
 class Configs(Enum):
     default_port: int = 6379

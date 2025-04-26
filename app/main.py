@@ -306,13 +306,19 @@ def connectToClient(socks: sock.socket):
                         if queueing_mode:
                             batch_queue.append(response)
                             response = '+QUEUED\r\n'
+                    case Command.DISCARD.value:
+                        if not queueing_mode:
+                            response = "+(error) ERR DISCARD without MULTI\r\n"
+                        else:
+                            queueing_mode = False
+                            batch_queue.clear()
+                            response = "+OK\r\n"
                     case Command.EXIT.value:
                         socks.sendall(b"+closed\r\n")
                         socks.close()
                         return
                     case _:
                         response = f"+(error) ERR unknown command '{command[0]}'\r\n"
-                print(response.encode())
                 socks.sendall(response.encode())
 def main():
     PORT = Configs.default_port.value  # 6379 be the default port
