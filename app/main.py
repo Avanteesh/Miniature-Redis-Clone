@@ -7,12 +7,13 @@ from os import mkdir, path
 from utils import Configs, Command, Stream, listToRESPArray
 from sys import argv
 from time import time
+from collections import OrderedDict
 from base64 import b64decode
 
 class Storage:
     map: dict[str, str] = dict()
     rlist: dict[str, list[str]] = dict()
-    streams: dict[str, dict[str, list[Stream]]] = dict()
+    streams: dict[int, OrderedDict] = dict()
     
 def setKey(command: list[str]) -> str:
     # set value to the hashmap
@@ -177,10 +178,10 @@ def appendStreamLog(command: list[str]) -> str:
     if len(command) < 5:
         return "+(error) ERR invalid number of arguments. You need to specify a keyname, Unique Key and keyvalue pairs\r\n"
     def helper(unique_key: str):
-        top_key, bottom_key = unique_key.split("-")
+        top_key, bottom_key = tuple(map(int, unique_key.split("-")))
         if top_key not in Storage.streams[command[1]]:
-            Storage.streams[command[1]] = []    # list of streams
-        stream: Stream = Stream(int(bottom_key)) 
+            Storage.streams[command[1]][top_key] = []    # list of streams
+        stream: Stream = Stream(bottom_key) 
         if len(command[3:]) % 2 != 0:
             return "+(error) values of all keys must be specified\r\n"
         u = 3
@@ -188,14 +189,14 @@ def appendStreamLog(command: list[str]) -> str:
             stream.addItem(command[u], command[u+1])
             u += 1
         if len(Storage.streams[command[1]]) >= 1:
-            existing_top = Storage.streams[command[1]][toplevel][-1].id # the top most key on the second key
+            existing_top = list(Storage.streams[command[1]][top_key].keys())[-1].id # the top most key on the second key
             # comparing the prior key with the new key!
             if existing_top >= int(bottom_key):
                 return "+(error) ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
         Storage.streams[command[1]][top_key].append(stream)    
         return f"+\"{unique_key}\"\r\n"
     if command[1] not in Storage.streams:
-        Storage.streams[command[1]] = dict()
+        Storage.streams[command[1]] = OrderedDict()
     unique_key = command[2]
     if unique_key == "0-0":
         return "+(error) ERR The ID specified in XADD must be greater than 0-0\r\n"
