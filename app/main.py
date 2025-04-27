@@ -157,10 +157,7 @@ def showActiveKeys(command: list[str]) -> str:
     pattern = command[1].replace('\'', '').replace('"', '')
     if pattern != '*':
         keys = list(filter(lambda key: patternFinder(pattern, key), keys))
-    response = "+"
-    for k in range(len(keys)):
-        response += f"{k+1}) \"{keys[k]}\"\n"
-    return response[:-1] + "\r\n" 
+    return listToRESPArray(keys)
 
 def incrementKey(command: list[str]) -> str:
     if len(command) != 2:
@@ -180,19 +177,20 @@ def appendStreamLog(command: list[str]) -> str:
     def helper(unique_key: str):
         top_key, bottom_key = tuple(map(int, unique_key.split("-")))
         if top_key not in Storage.streams[command[1]]:
-            Storage.streams[command[1]][top_key] = []    # list of streams
-        stream: Stream = Stream(bottom_key) 
+            Storage.streams[command[1]][top_key] = []
+        stream: Stream = Stream(bottom_key)
         if len(command[3:]) % 2 != 0:
             return "+(error) values of all keys must be specified\r\n"
         u = 3
         while u < len(command)-1:
             stream.addItem(command[u], command[u+1])
-            u += 1
+            u += 2
         if len(Storage.streams[command[1]]) >= 1:
-            existing_top = list(Storage.streams[command[1]][top_key].keys())[-1].id # the top most key on the second key
-            # comparing the prior key with the new key!
-            if existing_top >= int(bottom_key):
-                return "+(error) ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+            if len(Storage.streams[command[1]][top_key]) > 0:
+                existing_top = list(Storage.streams[command[1]][top_key])[-1].id # the top most key on the second key
+                # comparing the prior key with the new key!
+                if existing_top >= int(bottom_key):
+                    return "+(error) ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
         Storage.streams[command[1]][top_key].append(stream)    
         return f"+\"{unique_key}\"\r\n"
     if command[1] not in Storage.streams:
@@ -209,10 +207,36 @@ def appendStreamLog(command: list[str]) -> str:
         return helper(f"{unique_key}-0")
 
 def displayStreamResponse(command: list[str]) -> str:
-    if len(command) < 4:
+    if len(command) < 3:
         return "+(error) ERR stream keys starting and ending range not specified!\r\n"
     if command[1] not in Storage.streams:
         return "+(empty array)\r\n"
+    def parseStreamKeys(key: str):
+        if match(r"\d+-\d+", key) is not None:
+            return tuple(map(int, key.split("-")))
+        elif match(r"\d+", key) is not None:
+            return (int(key), 0)
+    if len(command) == 3:
+        streamkeys = parseStreamKeys(command[2])    
+        if streamkeys is None:
+            return "+(error) ERR stream keys are of invalid type\r\n"
+        if streamkeys[0] in Storage.streams[command[1]]:
+            if streamkeys[1] in Storage.streams[command[1]][streamkeys[0]]:
+                values = Storage.streams[command[1]][streamkeys[0]][streamkeys[1]]
+                return listToRESPArray([command[2], values.flatten()])
+            return "+(empty array)\r\n"
+    first_index, second_index = parseStreamKeys(command[2]), parseStreamKeys(command[3])
+    if first_index[0] > second_index[0]:
+        return "+(empty array)\r\n"
+    keys = list(filter(lambda item: item >= first_index[0] and item <= second_index[0], Storage.streams[command[1]].keys()))
+    result = list()
+    for _key in keys:
+        row = [_key]
+        for _streams in Storage.streams[command[1]][_key]:
+            if _streams.id >= first_index[1] and _streams.id <= second_index[1]:
+                row.append(_streams.flatten())
+        result.append(row)
+    return listToRESPArray(result)       
 
 def getKeyType(command: list[str]) -> str:
     if len(command) != 2:
@@ -231,7 +255,7 @@ def getKeyType(command: list[str]) -> str:
 
 def parseRespString(respstr: str) -> list[str]:
     tokens = respstr.split("\r\n")
-    result = []
+    result = list()
     for k in range(2, len(tokens), 2):
         result.append(tokens[k])
     return result

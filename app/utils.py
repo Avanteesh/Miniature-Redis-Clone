@@ -5,10 +5,10 @@ from typing import Union
 def listToRESPArray(arraylist: list[str]) -> str:
     result = f"*{len(arraylist)}\r\n"
     for item in arraylist:
-        if isinstance(item, list) or isinstance(item, tuple):
+        if isinstance(item, list):
             result += listToRESPArray(item)  # is item in list is of type array convert it into RESP string recursively!
         else:
-            result += f"${len(item)}\r\n{item}\r\n"
+            result += f"${len(str(item))}\r\n{item}\r\n"
     return result
 
 # command grammar
@@ -27,6 +27,7 @@ class Command(Enum):
     EXIT = 'EXIT'     # stop the client from executing
     MULTI = 'MULTI'   # create a queue for batching multiple commands
     EXEC = 'EXEC'    # execute the batched commands
+    DECR = 'DECR'   # Decrement a key (only if a value is number)
     XADD = 'XADD'   # add data into a Stream 
     XRANGE = 'XRANGE'  # show items inside a stream!
     TYPE = 'TYPE'   # check the type of element stored in key!
@@ -41,14 +42,18 @@ class Configs(Enum):
 class Stream(object):
     """
     A Stream in Redis is a data structure that stores key value pairs with A unique ID (identifier).
-    It is an Append Only data structure and all keys must be unique
+    It is an Append Only data structure and all keys must be unique. Its also immutable!
     """
     def __init__(self, id: str):
         self.id = id
-        self.__stream_list = []
+        self.stream_list = []
 
     def addItem(self, key, value):
-        self.__stream_list.append((key, value))        
+        self.stream_list.append((key, value))      
 
-    def __repr__(self):
-        return listToRESPArray(self.__stream_list)
+    def flatten(self):
+        result = []
+        for items in self.stream_list:
+            for _item in items:
+                result.append(_item)
+        return result 
