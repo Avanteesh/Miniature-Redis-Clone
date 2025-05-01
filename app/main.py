@@ -1,19 +1,25 @@
 import socket as sock
+from utils import *
 from re import split, match
 from datetime import datetime, timedelta
 from threading import Thread, stack_size
 from time import sleep
 from os import mkdir, path
-from utils import Configs, Command, Stream, listToRESPArray
 from sys import argv
 from time import time
 from collections import OrderedDict
-from base64 import b64decode
 
 class Storage:
-    map: dict[str, str] = dict()
+    map: dict[str, dict[str, str]] = dict()
     rlist: dict[str, list[str]] = dict()
     streams: dict[int, OrderedDict] = dict()
+
+    @staticmethod
+    def serializeMap():
+        serialized = f"${len(Storage.map)} "
+        for key, value in Storage.map.items():
+            serialized += key + f":{value['value']}, ttl {value['exp']}\r\n"
+        return serialized.encode()
     
 def setKey(command: list[str]) -> str:
     # set value to the hashmap
@@ -39,6 +45,16 @@ def setKey(command: list[str]) -> str:
                 return '+(error) ERR invalid argument for TTL field!\r\n'
     return "+OK\r\n"
 
+def addDataToFile():
+    with open(path.join(Configs.config_path.value, Configs.config_file.value), 'wb') as f1:
+        f1.write(Configs.rdb_header.value)
+        f1.write(RDBFlags.DATABASE_START.value)
+        f1.write(RDBFlags.HASH_MAP.value)
+        serialized_map = Storage.serializeMap()
+        f1.write(serialized_map)
+        f1.write(RDBFlags.HASHMAP_END.value)
+        f1.write(RDBFlags.EOF.value)
+
 def checkConfigurationDetails(command) -> str:
     def init_configs():
         if not path.exists('tmp'):
@@ -54,8 +70,7 @@ def checkConfigurationDetails(command) -> str:
         if command[2].upper() == 'DBFILENAME':
             init_configs()
             if not path.exists(path.join(Configs.config_path.value, Configs.config_file.value)):
-                with open(path.join(Configs.config_path.value, Configs.config_file.value), 'wb') as f1:
-                    f1.write(b64decode(Configs.rdb_header.value))
+                addDataToFile()
             return listToRESPArray(['dbfilename', Configs.config_file.value])
 
 def checkForExpiryKeys() -> None:
@@ -170,6 +185,18 @@ def incrementKey(command: list[str]) -> str:
     except ValueError:
         return f"+(error) the key \"{command[1]}\" is not valid number\r\n"
     return "+OK\r\n"
+
+def decrementKey(command: list[str]) -> str:
+    if len(command) != 2:
+        return "+(error) ERR two arguments required!\r\n"
+    elif command[1] not in Storage.map:
+        return "+(error) nil values can't be decremented!\r\n"
+    try:
+        key_val = int(Storage.map[command[1]]['value'])
+        Storage.map[command[1]]['value'] = str(key_val - 1)
+    except ValueError:
+        return f"+(error) the key \"{command[1]}\" is not valid number\r\n"
+    return "+OK\r\n"   
 
 def appendStreamLog(command: list[str]) -> str:
     if len(command) < 5:
@@ -359,6 +386,11 @@ def connectToClient(socks: sock.socket):
                         if queueing_mode:
                             batch_queue.append(response)
                             response = "+QUEUED\r\n"
+                    case Command.DECR.value:
+                        response = decrementKey(command)
+                        if queueing_mode:
+                            batch_queue.append(response)
+                            response = "+QUEUED\r\n"
                     case Command.EXIT.value:
                         socks.sendall(b"+closed\r\n")
                         socks.close()
@@ -366,6 +398,16 @@ def connectToClient(socks: sock.socket):
                     case _:
                         response = f"+(error) ERR unknown command '{command[0]}'\r\n"
                 socks.sendall(response.encode())
+
+def fetchExistingData():
+    if not path.exists(path.join(Configs.config_path.value, Configs.config_file.value)):
+        return
+    with open(path.join(Configs.config_path.value, Configs.config_file.value), "rb") as file:
+        map_start = len(Configs.rdb_header.value) + len(RDBFlags.DATABASE_START.value) + len(RDBFlags.HASH_MAP.value)
+        file.seek(map_start)   # skip the header and a few bytes!
+        content = file.read()
+        ...
+
 def main():
     PORT = Configs.default_port.value  # 6379 be the default port
     if len(argv) == 3:
@@ -376,6 +418,7 @@ def main():
             PORT = int(argv[2])
     print("Logs from your program will appear here!")
     sock_server = sock.create_server(("127.0.0.1", PORT))
+    fetchExistingData()
     while True:
         connection, address = sock_server.accept()
         con_thread: Thread = Thread(target=connectToClient, args=[connection]) # connection thread!

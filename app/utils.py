@@ -1,12 +1,14 @@
 from enum import Enum
 from os import path
 from typing import Union
+from base64 import b64decode
 
 def listToRESPArray(arraylist: list[str]) -> str:
     result = f"*{len(arraylist)}\r\n"
     for item in arraylist:
         if isinstance(item, list):
-            result += listToRESPArray(item)  # is item in list is of type array convert it into RESP string recursively!
+            result += listToRESPArray(item)  
+            # is item in list is of type array convert it into RESP string recursively!
         else:
             result += f"${len(str(item))}\r\n{item}\r\n"
     return result
@@ -33,10 +35,16 @@ class Command(Enum):
     TYPE = 'TYPE'   # check the type of element stored in key!
     DISCARD = 'DISCARD'  # terminate the batch 
 
+class RDBFlags(Enum):
+    DATABASE_START = b'\xFE'
+    HASH_MAP = b'\xFD'
+    HASHMAP_END = b'\xFEA'
+    EOF = b'\xFF'
+
 class Configs(Enum):
     default_port: int = 6379
     config_path: str = path.join('tmp','redis-data')  # config path
-    rdb_header: bytes = b"UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==" # rdb file header
+    rdb_header: bytes = b64decode(b"UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==") # rdb file header
     config_file: str = 'dump.rdb'    # configuration file    
         
 class Stream(object):
